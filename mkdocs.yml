@@ -1,0 +1,16 @@
+site_name: AI for Data Quality Control
+theme:
+  name: material
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - How-to:
+      - Download from QCDB: how-to/download-from-qcdb.md
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
