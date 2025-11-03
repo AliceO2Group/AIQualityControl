@@ -1,0 +1,18 @@
+[project]
+name = "ai-for-data-quality-control"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "numpy>=2.3.4",
+    "pytest>=8.4.2",
+    "requests>=2.32.5",
+]
+
+[dependency-groups]
+dev = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.6.23",
+    "mkdocstrings[python]>=0.30.1",
+]
