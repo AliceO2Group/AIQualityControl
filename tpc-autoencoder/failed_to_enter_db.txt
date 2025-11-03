@@ -1,0 +1,90 @@
+/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/downloads/qc/TPC/MO/Q_O_physics/QualitySummary/TObject_1700772968078.root
+Traceback (most recent call last):
+  File "/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/create_qc_db_from_root_objects.py", line 225, in <module>
+    run, rec = process(abs_path_root_file, abs_path_json_meta,
+               ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                       key_name="ccdb_object", db_pickle="quality_db.pkl")
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/create_qc_db_from_root_objects.py", line 182, in process
+    kv, canvas_name = extract_quality_from_root(root_file, key_name=key_name)
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/create_qc_db_from_root_objects.py", line 126, in extract_quality_from_root
+    raise RuntimeError("Canvas has no primitives (empty).")
+RuntimeError: Canvas has no primitives (empty).
+
+---
+/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/downloads/qc/TPC/MO/Q_O_physics/QualitySummary/TObject_1700773546213.root
+Traceback (most recent call last):
+  File "/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/create_qc_db_from_root_objects.py", line 225, in <module>
+    run, rec = process(abs_path_root_file, abs_path_json_meta,
+               ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                       key_name="ccdb_object", db_pickle="quality_db.pkl")
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/create_qc_db_from_root_objects.py", line 182, in process
+    kv, canvas_name = extract_quality_from_root(root_file, key_name=key_name)
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/create_qc_db_from_root_objects.py", line 126, in extract_quality_from_root
+    raise RuntimeError("Canvas has no primitives (empty).")
+RuntimeError: Canvas has no primitives (empty).
+
+---
+/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/downloads/qc/TPC/MO/Q_O_physics/QualitySummary/TObject_1702371993522.root
+Traceback (most recent call last):
+  File "/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/create_qc_db_from_root_objects.py", line 225, in <module>
+    run, rec = process(abs_path_root_file, abs_path_json_meta,
+               ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                       key_name="ccdb_object", db_pickle="quality_db.pkl")
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/create_qc_db_from_root_objects.py", line 182, in process
+    kv, canvas_name = extract_quality_from_root(root_file, key_name=key_name)
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/create_qc_db_from_root_objects.py", line 126, in extract_quality_from_root
+    raise RuntimeError("Canvas has no primitives (empty).")
+RuntimeError: Canvas has no primitives (empty).
+
+---
+/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/downloads/qc/TPC/MO/Q_O_physics/QualitySummary/TObject_1709562641539.root
+Traceback (most recent call last):
+  File "/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/create_qc_db_from_root_objects.py", line 225, in <module>
+    run, rec = process(abs_path_root_file, abs_path_json_meta,
+               ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                       key_name="ccdb_object", db_pickle="quality_db.pkl")
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/create_qc_db_from_root_objects.py", line 182, in process
+    kv, canvas_name = extract_quality_from_root(root_file, key_name=key_name)
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/create_qc_db_from_root_objects.py", line 126, in extract_quality_from_root
+    raise RuntimeError("Canvas has no primitives (empty).")
+RuntimeError: Canvas has no primitives (empty).
+
+---
+/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/downloads/qc/TPC/MO/Q_O_physics/QualitySummary/TObject_1709562934573.root
+Traceback (most recent call last):
+  File "/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/create_qc_db_from_root_objects.py", line 225, in <module>
+    run, rec = process(abs_path_root_file, abs_path_json_meta,
+               ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                       key_name="ccdb_object", db_pickle="quality_db.pkl")
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/create_qc_db_from_root_objects.py", line 182, in process
+    kv, canvas_name = extract_quality_from_root(root_file, key_name=key_name)
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/create_qc_db_from_root_objects.py", line 126, in extract_quality_from_root
+    raise RuntimeError("Canvas has no primitives (empty).")
+RuntimeError: Canvas has no primitives (empty).
+
+---
+/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/downloads/qc/TPC/MO/Q_O_physics/QualitySummary/TObject_1710520352344.root
+Traceback (most recent call last):
+  File "/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/create_qc_db_from_root_objects.py", line 225, in <module>
+    run, rec = process(abs_path_root_file, abs_path_json_meta,
+               ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                       key_name="ccdb_object", db_pickle="quality_db.pkl")
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/create_qc_db_from_root_objects.py", line 182, in process
+    kv, canvas_name = extract_quality_from_root(root_file, key_name=key_name)
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/zetasourpi/Desktop/ai-qc/AI-for-data-quality-control/tpc-autoencoder/create_qc_db_from_root_objects.py", line 126, in extract_quality_from_root
+    raise RuntimeError("Canvas has no primitives (empty).")
+RuntimeError: Canvas has no primitives (empty).
+
+---

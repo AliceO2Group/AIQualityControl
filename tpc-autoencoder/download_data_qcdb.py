@@ -81,8 +81,6 @@ def user_interaction(path, objects):
 
     return action, limit if 'limit' in locals() else None
 
-# http://ali-qcdb-gpn.cern.ch:8083/browse/qc/GLO/MO/K0sMassTrend/glo_k0s_mass_trending/RunNumber=566821
-# to filter specific events 
 
 def browse(path):
     """Return (subdirs, objects) for QCDB /browse/<path>."""
