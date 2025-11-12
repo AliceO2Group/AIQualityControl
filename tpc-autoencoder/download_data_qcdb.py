@@ -3,10 +3,11 @@ import os, sys, re, json, time, pathlib, requests
 from urllib.parse import quote
 import pathlib
 from pathlib import Path
+from tqdm import tqdm
 
 # ------------ CONFIG ------------
 BASE      = "http://ali-qcdb-gpn.cern.ch:8083"     # CCDB/QCDB endpoint
-QC_PREFIX = "qc/TPC/MO/Q_O_physics/QualitySummary" # subtree to crawl
+QC_PREFIX = "qc/TPC/MO/Clusters/c_Sides_N_Clusters" # subtree to crawl
 OUT_DIR   = "./downloads"                          # where to save files
 
 
@@ -104,10 +105,10 @@ def browse(path):
             print(f"Limiting download to {limit} objects.")
             data['objects'] = data['objects'][:limit]
 
-        for i, obj in enumerate(data['objects']):
+        for i, obj in enumerate(tqdm(data['objects'], total=len(data['objects'])), start=0):
             
-            print(f"OBJ {i+1}/{len(data['objects'])} in {path}: {obj['fileName']} (ETag: {obj['ETag']})")
-            print("FILE", os.path.join(path, obj['fileName']))
+            #print(f"OBJ {i+1}/{len(data['objects'])} in {path}: {obj['fileName']} (ETag: {obj['ETag']})")
+            #print("FILE", os.path.join(path, obj['fileName']))
             
             # Update metadata    
             qcdb['DATA'][path].append(obj)
@@ -119,7 +120,7 @@ def browse(path):
             download.raise_for_status()
             
             outfile = save_response_to_file(download, os.path.join(OUT_DIR, path), fallback_name=qcdb['DATA'][path][i]['fileName'])
-            print("Saved:", outfile)
+            #print("Saved:", outfile)
             
         # Save metadata to a JSON file
         save_json_to_file_flat(qcdb['DATA'][path], OUT_DIR, path)
