@@ -5,31 +5,6 @@ import pathlib
 from pathlib import Path
 from tqdm import tqdm
 
-# ------------ CONFIG ------------
-BASE      = "http://ali-qcdb-gpn.cern.ch:8083"     # CCDB/QCDB endpoint
-QC_PREFIX = "qc/TPC/MO/Clusters/c_Sides_N_Clusters" # subtree to crawl
-OUT_DIR   = "./downloads"                          # where to save files
-
-
-TIMEOUT   = 60
-
-sess = requests.Session()
-HEADERS_JSON = {"Accept": "application/json"}
-HEADERS_BIN  = {}  # CCDB will set content headers on the response
-
-qcdb = {"BASE_DIR": BASE, "QC_PREFIX": QC_PREFIX, "OUT_DIR": OUT_DIR
-      , "TIMEOUT": TIMEOUT, "DATA": {}}
-
-
-def download_file(path, obj):
-        url = f"{BASE}/download/{quote(os.path.join(path, obj['name']))}"
-        r = sess.get(url, headers=HEADERS_BIN, timeout=TIMEOUT)
-        r.raise_for_status()
-        outpath = os.path.join(OUT_DIR, path, obj['name'])
-        with open(outpath, 'wb') as f:
-            f.write(r.content)
-        print(f"Downloaded {outpath} ({len(r.content)} bytes)")
-        
         
 def save_response_to_file(resp, outdir, fallback_name="download.bin"):
     os.makedirs(outdir, exist_ok=True)
@@ -58,7 +33,9 @@ def user_interaction(path, objects):
         print("Exiting.")
         sys.exit(0)
     elif user_action_input.lower() in ['n', 'no']:
-        print(f"Skipping download of files.")
+        action = None 
+        limit = None
+        return action, limit if 'limit' in locals() else None
     elif user_action_input.lower() in ['y', 'yes']:
         action = True
     else:
@@ -83,8 +60,22 @@ def user_interaction(path, objects):
     return action, limit if 'limit' in locals() else None
 
 
-def browse(path):
+def browse(QC_PATH, QCDB_ENDPOINT, OUT_DIR, TIMEOUT):
     """Return (subdirs, objects) for QCDB /browse/<path>."""
+    path = QC_PATH
+    BASE = QCDB_ENDPOINT
+    
+    qcdb = {"BASE_DIR": BASE,
+        "QC_PATH": path, 
+        "OUT_DIR": OUT_DIR, 
+        "TIMEOUT": TIMEOUT, 
+        "DATA": {}}
+    
+    sess = requests.Session()
+    HEADERS_JSON = {"Accept": "application/json"}
+    HEADERS_BIN  = {}  # CCDB will set content headers on the response
+
+
     url = f"{BASE}/browse/{quote(path)}"
     r = sess.get(url, headers=HEADERS_JSON, timeout=TIMEOUT)
     r.raise_for_status()
@@ -92,15 +83,15 @@ def browse(path):
     if data['subfolders']:
         for subfolder in data['subfolders']:
             print("DIR ", os.path.join(path, subfolder))
-            browse(subfolder)
+            browse(subfolder, BASE, OUT_DIR, TIMEOUT)
     else: # update the metadata in the qcdb dict and download files
         qcdb['DATA'].setdefault(path, [])
         action ,limit = user_interaction(path, data['objects'])
         
         if action is None:
             print(f"Skipping download of files in {path}.")
-            return # skip download, go to next folder
-        
+            return 
+                
         if limit is not None and limit < len(data['objects']):
             print(f"Limiting download to {limit} objects.")
             data['objects'] = data['objects'][:limit]
@@ -124,7 +115,17 @@ def browse(path):
             
         # Save metadata to a JSON file
         save_json_to_file_flat(qcdb['DATA'][path], OUT_DIR, path)
-    return qcdb['DATA']
+    return True
 
-browse(QC_PREFIX) 
+
+if __name__ == '__main__': 
+    
+    # ------------ EXAMPLE USAGE ------------
+    BASE      = "http://ali-qcdb-gpn.cern.ch:8083"          # CCDB/QCDB endpoint
+    # QC_PREFIX = "qc/TPC/MO/Clusters/c_Sides_N_Clusters/"  # subtree to crawl
+    QC_PREFIX = "qc/TPC/MO/Q_O_physics/QualitySummary"      # subtree to crawl
+    OUT_DIR   = "./qcdb_data_auto"                          # where to save files
+    TIMEOUT   = 60
+
+    browse(QC_PATH=QC_PREFIX, QCDB_ENDPOINT=BASE, OUT_DIR=OUT_DIR, TIMEOUT=TIMEOUT)
 
