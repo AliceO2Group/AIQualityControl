@@ -1,0 +1,48 @@
+dataset:
+  folder: "/Users/zetasourpi/cernbox/training-data/tpc/good"
+  limit: 30
+  image_size: [128, 128]  
+
+data_split:  
+  train_split: 0.8
+  split_seed: 42
+
+dataloader_args:
+  batch_size: 4
+  shuffle: true
+  num_workers: 0
+  pin_memory: false
+
+model_parameters:
+  latent_dim: 64
+  hidden_dim: 500
+  channels: 3
+
+train:
+  epochs: 10
+  lr: 0.001
+  seed: 123
+
+viz:
+  every_n_epochs: 4
+  threshold: 0.05
+  num_samples: 4
+  loss_map_cmap: "jet"
+
+
+mlflow:
+  run_name: "final"                     
+  experiment_name: "zeta"
+  tracking:
+    backend: "sqlite"                 
+    local_uri: "sqlite:////Users/zetasourpi/cernbox/mlflow-backend/mlflow.db"               
+    artifact_root: "/Users/zetasourpi/cernbox/mlflow-backend/mlruns"   # Always used from the server side (so mlflow ui)
+    server_uri: "http://127.0.0.1:8080"
+  tags:
+    project: "ai-qc"
+    model_type: "LinearAE"
+    change: "None"
+    dataset: "Good Quality TPC Cluster Maps"
+  detailed_comments: "None"
+  detailed_comments_filename: "notes.md"
+
