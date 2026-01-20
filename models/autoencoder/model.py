@@ -37,4 +37,6 @@ class LinearAE(nn.Module):
         return out.view(b, self.channels, h, w)
     
 
-
+class ConvAE(nn.Module):
+    def __init__(self, latent_dim=64, image_size=(128, 128), channels=3, hidden_dim=512):
+        super().__init__()

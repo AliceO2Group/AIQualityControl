@@ -75,28 +75,57 @@ with torch.no_grad():
 
 signature = infer_signature(x, y)
 
-# Return to training mode 
-model.train()
-
 mlflow.enable_system_metrics_logging()
 
 with mlflow.start_run(run_name = CONFIG["mlflow"]["run_name"]):
     mlflow.log_params(CONFIG["model_parameters"])
 
     for epoch in range(1, CONFIG['train']['epochs'] + 1):
-        for batch in train_iterator:
-            img_batch = batch[0] if isinstance(batch, (tuple, list)) else batch
+        
+        model.train()
+        for train_batch in train_iterator:
+            img_batch = train_batch[0] if isinstance(batch, (tuple, list)) else train_batch
 
             preds = model(img_batch)
-            loss = loss_fn(preds, img_batch)
+            train_loss = loss_fn(preds, img_batch)
 
             opt.zero_grad()
-            loss.backward()
+            train_loss.backward()
             opt.step()
+        
+        mlflow.log_metric("train_loss", float(train_loss.item()), step=epoch)
+        
+        model.eval()
+        for eval_batch in val_iterator:
+            imgs = eval_batch
+            loss_vals, mse_vals, mae_vals, ssim_vals = [], [], [], []
+            
+            with torch.no_grad():
+                    recon = model(imgs)
+                    eval_loss = loss_fn(recon, imgs)
+                    # mse = ((imgs - recon) ** 2).mean(dim=(1, 2, 3))
+                    # mae = (imgs - recon).abs().mean(dim=(1, 2, 3))
 
-        mlflow.log_metric("train_loss", float(loss.item()), step=epoch)
-        print(f"Epoch {epoch} | Loss: {loss.item():.4f}")
+                    # mse_vals.append(mse.detach().cpu())
+                    # mae_vals.append(mae.detach().cpu())
 
+        # aggregate
+        # val_mse  = torch.cat(mse_vals).mean().item()
+        # val_mae  = torch.cat(mae_vals).mean().item()
+
+        mlflow.log_metric("val_loss", eval_loss.item(), step=epoch)
+        # mlflow.log_metric("val_mse",  val_mse,  step=epoch)
+        # mlflow.log_metric("val_mae",  val_mae,  step=epoch)
+
+        print(
+            f"Epoch {epoch:03d} | "
+            f"Train: {train_loss.item():.4f} | "
+            f"Val: {eval_loss.item():.4f} | "
+        )
+        
+        # Return to training mode 
+        model.train()
+        
         if epoch % 4 == 0:
             with torch.no_grad():
                 sample = img_batch[:4]

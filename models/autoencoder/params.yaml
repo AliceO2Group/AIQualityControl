@@ -31,7 +31,7 @@ viz:
 
 
 mlflow:
-  run_name: "final"                     
+  run_name: "last"                     
   experiment_name: "zeta"
   tracking:
     backend: "sqlite"                 
