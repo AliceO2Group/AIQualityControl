@@ -15,6 +15,7 @@ class QcdbImageDataset(Dataset):
             for f in os.listdir(folder)
             if f.lower().endswith((".png", ".jpg", ".jpeg"))
         ]
+        
         self.paths = paths[:limit]
 
     def __len__(self):

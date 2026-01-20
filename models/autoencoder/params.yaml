@@ -1,6 +1,6 @@
 dataset:
   folder: "/Users/zetasourpi/cernbox/training-data/tpc/good"
-  limit: 30
+  limit: None
   image_size: [128, 128]  
 
 data_split:  
