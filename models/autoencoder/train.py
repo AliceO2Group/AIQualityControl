@@ -1,7 +1,8 @@
-from models.autoencoder.src.dataset import QcdbImageDataset
-from models.autoencoder.src.model import LinearAE as Model
-from models.autoencoder.src.eval import evaluate_epoch
+from dataset import QcdbImageDataset
+from model import LinearAE as Model
+
 from mlflow.models import infer_signature
+
 import numpy as np
 import torch
 import shutil
@@ -19,9 +20,19 @@ import matplotlib.pyplot as plt
 
 import mlflow
 import mlflow.pytorch
-
 from utils import *
 
+
+import torch
+
+if torch.backends.mps.is_available():
+    device = torch.device("mps")
+elif torch.cuda.is_available():
+    device = torch.device("cuda")
+else:
+    device = torch.device("cpu")
+
+print("Using device:", device)
 
 CONFIG = load_yaml('params.yaml')
 
@@ -59,6 +70,7 @@ model = Model(
     image_size=CONFIG["dataset"]["image_size"],
     **CONFIG["model_parameters"]
 )
+model = model.to(device)
 
 loss_fn = nn.MSELoss()
 opt = torch.optim.Adam(model.parameters(), lr=CONFIG["train"]["lr"])
@@ -70,6 +82,7 @@ if isinstance(batch, (tuple, list)):
     
 model.eval()
 with torch.no_grad():
+    batch = batch.to(device)
     x = batch.detach().cpu().numpy().astype(np.float32)
     y = model(batch).detach().cpu().numpy().astype(np.float32)
 
@@ -84,7 +97,8 @@ with mlflow.start_run(run_name = CONFIG["mlflow"]["run_name"]):
         
         model.train()
         for train_batch in train_iterator:
-            img_batch = train_batch[0] if isinstance(batch, (tuple, list)) else train_batch
+            img_batch = train_batch[0] if isinstance(train_batch, (tuple, list)) else train_batch
+            img_batch = img_batch.to(device)
 
             preds = model(img_batch)
             train_loss = loss_fn(preds, img_batch)
@@ -100,6 +114,8 @@ with mlflow.start_run(run_name = CONFIG["mlflow"]["run_name"]):
             imgs = eval_batch
             loss_vals, mse_vals, mae_vals, ssim_vals = [], [], [], []
             
+            imgs = imgs.to(device)
+
             with torch.no_grad():
                     recon = model(imgs)
                     eval_loss = loss_fn(recon, imgs)

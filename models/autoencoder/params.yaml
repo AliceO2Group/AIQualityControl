@@ -1,6 +1,6 @@
 dataset:
   folder: "/Users/zetasourpi/cernbox/training-data/tpc/good"
-  limit: None
+  limit: 200
   image_size: [128, 128]  
 
 data_split:  
@@ -31,8 +31,8 @@ viz:
 
 
 mlflow:
-  run_name: "last"                     
-  experiment_name: "zeta"
+  run_name: "img_limit_200_with_gpu_epoch_10"                     
+  experiment_name: "exp_001_linearAE_image_flat"
   tracking:
     backend: "sqlite"                 
     local_uri: "sqlite:////Users/zetasourpi/cernbox/mlflow-backend/mlflow.db"               

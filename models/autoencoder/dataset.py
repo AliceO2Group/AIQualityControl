@@ -1,7 +1,7 @@
 import os 
 from torch.utils.data import Dataset
 from torchvision import transforms
-from models.autoencoder.src.utils import *
+from utils import *
 from PIL import Image
 
 class QcdbImageDataset(Dataset):
@@ -16,7 +16,10 @@ class QcdbImageDataset(Dataset):
             if f.lower().endswith((".png", ".jpg", ".jpeg"))
         ]
         
-        self.paths = paths[:limit]
+        if limit is not None:
+            self.paths = paths[:limit]
+        else: 
+            self.paths = paths
 
     def __len__(self):
         return len(self.paths)
