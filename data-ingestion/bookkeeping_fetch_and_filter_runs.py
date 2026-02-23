@@ -27,7 +27,7 @@ def fetch_and_save_runs(
     print(f"Requesting data from: {url}")
 
     BASE_DIR = Path(__file__).resolve().parent
-    ca_bundle = os.path.join(BASE_DIR, "ali-bookkeeping.cern.ch.pem")
+    ca_bundle = os.path.join(BASE_DIR, "permissions/ali-bookkeeping.cern.ch.pem")
 
     response = requests.get(url, verify=ca_bundle, timeout=30)
     response.raise_for_status()

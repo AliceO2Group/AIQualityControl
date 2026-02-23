@@ -6,6 +6,7 @@ from pathlib import Path
 from tqdm import tqdm
 
         
+
 def save_response_to_file(resp, outdir, fallback_name="download.bin"):
     os.makedirs(outdir, exist_ok=True)
     # filename from Content-Disposition if possible
@@ -13,6 +14,8 @@ def save_response_to_file(resp, outdir, fallback_name="download.bin"):
     m = re.search(r'filename="([^"]+)"', cd)
     filename = m.group(1) if m else fallback_name
     dst = os.path.join(outdir, filename)
+    if os.path.isdir(dst):
+        raise IsADirectoryError(f"Refusing to write to directory path: {dst!r} (filename={filename!r})")
     with open(dst, "wb") as f:
         for chunk in resp.iter_content(chunk_size=1024*1024):
             if chunk:
@@ -110,11 +113,15 @@ def browse(QC_PATH, QCDB_ENDPOINT, OUT_DIR, TIMEOUT):
             download = sess.get(url, headers=HEADERS_BIN, timeout=TIMEOUT)
             download.raise_for_status()
             
-            outfile = save_response_to_file(download, os.path.join(OUT_DIR, path), fallback_name=qcdb['DATA'][path][i]['fileName'])
+            if qcdb['DATA'][path][i]['fileName']:
+                outfile = save_response_to_file(download, os.path.join(OUT_DIR, path), fallback_name=qcdb['DATA'][path][i]['fileName'])
             #print("Saved:", outfile)
             
-        # Save metadata to a JSON file
-        save_json_to_file_flat(qcdb['DATA'][path], OUT_DIR, path)
+            # Save metadata to a JSON file
+                save_json_to_file_flat(qcdb['DATA'][path], OUT_DIR, path)
+            else: 
+                continue
+        
     return True
 
 

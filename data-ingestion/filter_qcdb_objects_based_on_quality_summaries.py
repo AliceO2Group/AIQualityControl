@@ -13,7 +13,7 @@ from tqdm.auto import tqdm
 import shutil 
 import logging 
 
-from utils import load_json_file_into_df, load_quality_summ_from_root_objects, config_logger, plot_qs_cluster_per_run_number
+from utils import load_json_file_into_df, load_quality_summ_from_root_objects, config_logger
 
 
 logger = config_logger(output_file="output.log")
@@ -44,7 +44,7 @@ def filter_mo_based_on_quality_summaries(BASE_PATH, qcdb_mo_json_data_REL_PATH, 
     logger.info(f"The total number of runs taken into consideration from api bkkp limit --> {len(bkkp_filtered_runs)}")
 
     # Filter the mo ex. clusters FURTHER by a quality metric of the quality summaries loaded from qcdb 
-    quality_dict = load_quality_summ_from_root_objects(filepath_of_root_objects= os.path.join(os.getcwd(), "qcdb_data/qc/TPC/MO/Q_O_physics/QualitySummary/"))
+    quality_dict = load_quality_summ_from_root_objects(filepath_of_root_objects= os.path.join(os.getcwd(), "data/qcdb_data/qc/TPC/MO/Q_O_physics/QualitySummary/"))
 
         # Chosen quality metric ex. Raw Occupancy quality is "Good"
     filtered_quality_summ_obj_names = [
@@ -91,10 +91,10 @@ def filter_mo_based_on_quality_summaries(BASE_PATH, qcdb_mo_json_data_REL_PATH, 
 
     for _, group_df in tqdm(iterable=concat_mo_with_qsum_mo_group_by_run_number, total = n_groups, desc="Processing run groups"):
         
-        mo_path = os.path.join(os.path.dirname(qcdb_mo_json_data_REL_PATH).replace("qcdb_data/", ""),
+        mo_path = os.path.join(os.path.dirname(qcdb_mo_json_data_REL_PATH).replace("data/qcdb_data/", ""),
                                 os.path.splitext(os.path.basename(qcdb_mo_json_data_REL_PATH))[0])
 
-        qsum_path =os.path.join(os.path.dirname(qcdb_qs_mo_json_data_REL_PATH).replace("qcdb_data/", ""),
+        qsum_path =os.path.join(os.path.dirname(qcdb_qs_mo_json_data_REL_PATH).replace("data/qcdb_data/", ""),
                                 os.path.splitext(os.path.basename(qcdb_qs_mo_json_data_REL_PATH))[0])
         
         num_mo_objects = group_df.path.value_counts()[mo_path]

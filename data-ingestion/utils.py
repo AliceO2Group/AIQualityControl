@@ -34,7 +34,6 @@ def config_logger(output_file="output.log"):
     logger = logging.getLogger("tpc_qc")
     logger.propagate = False
 
-    # 👇 If handlers already exist, don't add more
     if logger.handlers:
         return logger
 
@@ -156,327 +155,252 @@ def has_beam_type(run: dict, beam_type: str) -> bool:   # 'PP' or 'PbPb'
     return run.get("pdpBeamType") == beam_type
 
 
-def convert_root_files_to_img(ROOT_FILES_PATH, img_folder_of_root_obj): 
+# Convert ROOT to IMAGES 
+
+def make_canvas_exact(name: str, w: int, h: int) -> ROOT.TCanvas:
+    """
+    ROOT's TCanvas(w,h) is not always the final pixel buffer size.
+    This forces the internal canvas size to w×h.
+    """
+    c = ROOT.TCanvas(name, "", w, h)
+    c.SetFillColor(0)
+    c.SetBorderMode(0)
+    c.SetBorderSize(0)
+
+    c.SetCanvasSize(w, h)
+
+    try:
+        # Make sure the window is the requested size 
+        dw = w - c.GetWw()
+        dh = h - c.GetWh()
+        c.SetWindowSize(w + dw, h + dh)
+    except Exception:
+        pass
+
+    return c
+
+
+def strip_axes_and_ticks(h):
+    """
+    Remove titles, labels, tick marks, and divisions.
+    Works for TH1/TH2/TProfile-like objects.
+    """
+    if not h:
+        return
+
+    h.SetTitle("")
+    try:
+        h.SetStats(0)
+    except Exception:
+        pass
+
+    # Axes (TH1/TH2/TProfile)
+    for ax_getter in (h.GetXaxis, h.GetYaxis, getattr(h, "GetZaxis", None)):
+        if ax_getter is None:
+            continue
+        ax = ax_getter()
+        if not ax:
+            continue
+
+        ax.SetTitle("")
+        ax.SetLabelSize(0.0)
+        ax.SetTitleSize(0.0)
+        ax.SetTickLength(0.0)     # <-- kills ruler ticks
+        ax.SetNdivisions(0, True) # <-- kills tick subdivisions
+        ax.SetAxisColor(0)
+        ax.SetLabelColor(0)
+        ax.SetTitleColor(0)
+
+
+def pad_no_ticks(p: ROOT.TPad):
+    # Pad-level ticks off (ROOT can draw ticks from pad settings)
+    p.SetTicks(0, 0)
+    p.SetGrid(0, 0)
+
+    ROOT.gStyle.SetPadTickX(0)
+    ROOT.gStyle.SetPadTickY(0)
+
+
+def export_pad_png_1to1(p: ROOT.TPad, out_png: str, grey_scale: bool):
+    p.Update()
+    p.GetCanvas().Update()
+
+    img = ROOT.TImage.Create()
+    img.FromPad(p) #    Export exactly the rendered pad pixels (avoid SaveAs driver scaling).
+    if grey_scale: 
+        img.Gray()
+    # print("Captured image size:",
+    #   img.GetWidth(), "x", img.GetHeight())
+    img.WriteImage(out_png)
+
+
+def convert_root_files_to_img(ROOT_FILES_PATH, img_folder_of_root_obj, grey_scale=True, W=330, H=330):
 
     ROOT.gROOT.SetBatch(True)
-    ROOT.gErrorIgnoreLevel = ROOT.kWarning   # hides "Info in <TCanvas::Print>" lines
-    root_filenames = os.listdir(ROOT_FILES_PATH)
+    ROOT.gErrorIgnoreLevel = ROOT.kWarning
+
     os.makedirs(img_folder_of_root_obj, exist_ok=True)
+    root_filenames = [fn for fn in os.listdir(ROOT_FILES_PATH) if fn.endswith(".root")]
 
-    def strip_axes_and_titles(obj):
-        if hasattr(obj, "SetTitle"):
-            obj.SetTitle("")
+    for root_filename in tqdm(root_filenames, total=len(root_filenames),
+                              desc="Convert root objects to images."):
 
-        for axis_name in ["Xaxis", "Yaxis", "Zaxis"]:
-            get_axis = getattr(obj, f"Get{axis_name}", None)
-            if not get_axis:
-                continue
-            ax = get_axis()
-            if not ax:
-                continue
-            ax.SetTitle("")       # no axis title
-            ax.SetTitleSize(0.0)  # hide axis title
-            ax.SetLabelSize(0.0)  # hide numbers
-            ax.SetTickLength(0.0) # hide ticks if you want them gone as well
-
-    
-    for root_filename in tqdm(root_filenames, total=len(root_filenames), desc="Convert root objects to images."):
-
-        try: 
+        try:
             fpath = os.path.join(ROOT_FILES_PATH, root_filename)
             f = ROOT.TFile.Open(fpath, "READ")
-            if not f or f.IsZombie():
-                raise SystemExit(f"Failed to open {fpath}")
 
-            h = f.Get("ccdb_object")
-            if not h:
-                raise SystemExit("Histogram not found. Pick a name printed in the previous cell.")
+            canvas = f.Get("ccdb_object")
+            if not canvas:
+                raise RuntimeError("ccdb_object not found in file.")
 
-            tcanvas_prim_list = h.GetListOfPrimitives()
+            tcanvas_prim_list = canvas.GetListOfPrimitives()
 
-            for i, pad in enumerate(tcanvas_prim_list):
+            for i, src_pad in enumerate(tcanvas_prim_list):
+                if i < 2: # Because we know that the 3rd and 4rth pad are the histograms
 
-                # Create a new clean canvas
-                cname = f"c_{root_filename[:-5]}_{i}"
-                c = ROOT.TCanvas(cname, "", 2000, 2000)
+                    c = make_canvas_exact(f"c_{root_filename[:-5]}_{i}", W, H)
 
-                # Remove all margins so only the plot is visible
-                c.SetLeftMargin(0.0)
-                c.SetRightMargin(0.0)
-                c.SetTopMargin(0.0)
-                c.SetBottomMargin(0.0)
+                    # Fill the whole canvas with a pad (no margins/borders)
+                    p = ROOT.TPad("p_tmp", "", 0, 0, 1, 1)
+                    p.SetFillColor(0)
+                    p.SetBorderMode(0)
+                    p.SetBorderSize(0)
+                    p.SetLeftMargin(0.0)
+                    p.SetRightMargin(0.0)
+                    p.SetTopMargin(0.0)
+                    p.SetBottomMargin(0.0)
+                    pad_no_ticks(p)
 
-                # Turn off global titles / stats
-                ROOT.gStyle.SetOptTitle(0)
-                ROOT.gStyle.SetOptStat(0)
+                    p.Draw()
+                    p.cd()
 
-                prims = pad.GetListOfPrimitives()
+                    ROOT.gStyle.SetOptTitle(0)
+                    ROOT.gStyle.SetOptStat(0)
 
-                main_obj = None          # main TH2 / TH1 / TGraph, etc.
-                overlay_objs = []        # lines, polygons, etc. that we keep
+                    prims = src_pad.GetListOfPrimitives()
 
-                for prim in prims:
-                    cname_prim = prim.ClassName()
+                    main_obj = None
+                    overlay_objs = []
 
-                    # choose first TH* or TGraph* as main object
-                    # Identify the main drawable object
-                    
-                    if (main_obj is None and
-                        (cname_prim.startswith("TH") or
-                        cname_prim.startswith("TGraph") or
-                        cname_prim.startswith("TProfile"))):
+                    for prim in prims:
+                        cname_prim = prim.ClassName()
 
-                        main_obj = prim
+                        if (main_obj is None and
+                            (cname_prim.startswith("TH") or
+                            cname_prim.startswith("TGraph") or
+                            cname_prim.startswith("TProfile"))):
+                            main_obj = prim
 
-                        # if prim.InheritsFrom("TH2"):
-                        #     for ix in range(1, prim.GetNbinsX()+1):
-                        #         for iy in range(1, prim.GetNbinsY()+1):
-                        #             val = prim.GetBinContent(ix, iy)
-                        #             if val != 0:
-                        #                 x = prim.GetXaxis().GetBinCenter(ix)
-                        #                 y = prim.GetYaxis().GetBinCenter(iy)
-                                        # Uncomment to print bin contents
-                                        #print(f"  Bin({ix},{iy}) at (x={x:.2f}, y={y:.2f}) = {val}")
-                        
+                        elif cname_prim in [
+                            "TLine", "TPolyLine", "TPolyMarker", "TBox",
+                            "TEllipse", "TArc", "TCutG"
+                        ]:
+                            overlay_objs.append(prim)
 
-                    # keep various "inside" graphics (lines, boxes, polygons...)
-                    elif cname_prim in [
-                        "TLine", "TPolyLine", "TPolyMarker", "TBox",
-                        "TEllipse", "TArc", "TCutG"
-                    ]:
-                        overlay_objs.append(prim)
+                    if main_obj:
+                        main_clone = main_obj.Clone()
+                        if main_clone.InheritsFrom("TH1") or main_clone.InheritsFrom("TProfile"):
+                            strip_axes_and_ticks(main_clone)
 
-                    # implicitly SKIP palette axis, text labels, legends, etc.
-                    # (TPaletteAxis, TLatex, TText, TLegend, ...)
+                        draw_opt = main_obj.GetDrawOption() or "COL"
+                        main_clone.Draw(draw_opt)
 
-                if not main_obj:
-                    # Fall back: draw the whole pad if we didn't find a main object
-                    pad.Draw()
-                else:
-                    # Clone so we don't modify the original object in the file
-                    main_clone = main_obj.Clone()
-                    strip_axes_and_titles(main_clone)
+                        for obj in overlay_objs:
+                            obj_clone = obj.Clone()
+                            obj_clone.Draw(obj.GetDrawOption())
+                    else:
+                        # fallback: draw whole pad content
+                        src_pad.Draw()
 
-                    draw_opt = main_obj.GetDrawOption()
-                    if not draw_opt:
-                        draw_opt = "COL"
+                    out_name = os.path.join(img_folder_of_root_obj, f"{root_filename[:-5]}_{i}.png")
+                    export_pad_png_1to1(p, out_name, grey_scale)
 
-                    main_clone.Draw(draw_opt)
+                    c.Close()
 
-                    # Draw overlays on top
-                    for obj in overlay_objs:
-                        obj_clone = obj.Clone()
-                        obj_clone.Draw(obj.GetDrawOption())
-                        
-                c.Update()
+                f.Close()
 
-                out_name = os.path.join(
-                    img_folder_of_root_obj, f"{root_filename[:-5]}_{i}.png"
-                )
-                c.SaveAs(out_name)
-
-            f.Close()
-        except Exception as e: 
-            logger.error(f"Error on file: {root_filename} --> \n{e}")
+        except Exception as e:
+            print(f"Error on file {root_filename}: {e}")
             continue
         
         
 
-def convert_root_files_to_img(ROOT_FILES_PATH, img_folder_of_root_obj): 
 
-    ROOT.gROOT.SetBatch(True)
-    ROOT.gErrorIgnoreLevel = ROOT.kWarning   # hides "Info in <TCanvas::Print>" lines
-    root_filenames = os.listdir(ROOT_FILES_PATH)
-    os.makedirs(img_folder_of_root_obj, exist_ok=True)
+# Convert ROOT to TENSORS 
 
-    def strip_axes_and_titles(obj):
-        if hasattr(obj, "SetTitle"):
-            obj.SetTitle("")
+import os 
+from tqdm import tqdm
+import ROOT 
+import numpy as np
+from typing import Any, List, Tuple
 
-        for axis_name in ["Xaxis", "Yaxis", "Zaxis"]:
-            get_axis = getattr(obj, f"Get{axis_name}", None)
-            if not get_axis:
-                continue
-            ax = get_axis()
-            if not ax:
-                continue
-            ax.SetTitle("")       # no axis title
-            ax.SetTitleSize(0.0)  # hide axis title
-            ax.SetLabelSize(0.0)  # hide numbers
-            ax.SetTickLength(0.0) # hide ticks if you want them gone as well
 
+def th2_to_numpy(th2:Any) -> np.ndarray:
     
-    for root_filename in tqdm(root_filenames, total=len(root_filenames), desc="Convert root objects to images."):
+    nx = th2.GetNbinsX()
+    ny = th2.GetNbinsY()
+    a = np.zeros((ny, nx), dtype=np.float32)  # rows=y, cols=x
+    for ix in range(1, nx+1):
+        for iy in range(1, ny+1):
+            a[iy-1, ix-1] = th2.GetBinContent(ix, iy)
+    return a
 
-        try: 
-            fpath = os.path.join(ROOT_FILES_PATH, root_filename)
-            f = ROOT.TFile.Open(fpath, "READ")
-            if not f or f.IsZombie():
-                raise SystemExit(f"Failed to open {fpath}")
+def convert_root_files_to_tensors(
+        ROOT_FILES_PATH: str,
+        dest_folder: str
+    ) -> List[Tuple[str, str, np.ndarray]]:
+    
+    """
+    Extract TH2 histograms from ROOT files and convert them to NumPy arrays.
 
-            h = f.Get("ccdb_object")
-            if not h:
-                raise SystemExit("Histogram not found. Pick a name printed in the previous cell.")
-
-            tcanvas_prim_list = h.GetListOfPrimitives()
-
-            for i, pad in enumerate(tcanvas_prim_list):
-
-                # Create a new clean canvas
-                cname = f"c_{root_filename[:-5]}_{i}"
-                c = ROOT.TCanvas(cname, "", 2000, 2000)
-
-                # Remove all margins so only the plot is visible
-                c.SetLeftMargin(0.0)
-                c.SetRightMargin(0.0)
-                c.SetTopMargin(0.0)
-                c.SetBottomMargin(0.0)
-
-                # Turn off global titles / stats
-                ROOT.gStyle.SetOptTitle(0)
-                ROOT.gStyle.SetOptStat(0)
-
-                prims = pad.GetListOfPrimitives()
-
-                main_obj = None          # main TH2 / TH1 / TGraph, etc.
-                overlay_objs = []        # lines, polygons, etc. that we keep
-
-                for prim in prims:
-                    cname_prim = prim.ClassName()
-
-                    # choose first TH* or TGraph* as main object
-                    # Identify the main drawable object
-                    
-                    if (main_obj is None and
-                        (cname_prim.startswith("TH") or
-                        cname_prim.startswith("TGraph") or
-                        cname_prim.startswith("TProfile"))):
-
-                        main_obj = prim
-
-                        # if prim.InheritsFrom("TH2"):
-                        #     for ix in range(1, prim.GetNbinsX()+1):
-                        #         for iy in range(1, prim.GetNbinsY()+1):
-                        #             val = prim.GetBinContent(ix, iy)
-                        #             if val != 0:
-                        #                 x = prim.GetXaxis().GetBinCenter(ix)
-                        #                 y = prim.GetYaxis().GetBinCenter(iy)
-                        #                 # Uncomment to print bin contents
-                        #                 print(f"  Bin({ix},{iy}) at (x={x:.2f}, y={y:.2f}) = {val}")
-                                                        
-                    # keep various "inside" graphics (lines, boxes, polygons...)
-                    elif cname_prim in [
-                        "TLine", "TPolyLine", "TPolyMarker", "TBox",
-                        "TEllipse", "TArc", "TCutG"
-                    ]:
-                        overlay_objs.append(prim)
-
-                    # implicitly SKIP palette axis, text labels, legends, etc.
-                    # (TPaletteAxis, TLatex, TText, TLegend, ...)
-
-                if not main_obj:
-                    # Fall back: draw the whole pad if we didn't find a main object
-                    pad.Draw()
-                else:
-                    # Clone so we don't modify the original object in the file
-                    main_clone = main_obj.Clone()
-                    strip_axes_and_titles(main_clone)
-
-                
-                    # ------------ NORMALIZATION BLOCK ------------
-                    if main_clone.InheritsFrom("TH1"):
-                        # max-normalization: value / max
-                        max_val = main_clone.GetMaximum()
-                        if max_val > 0:
-                            main_clone.Scale(1.0 / max_val)
-                            main_clone.SetMinimum(0.0)
-                            main_clone.SetMaximum(1.0)
-                            
-                    draw_opt = main_obj.GetDrawOption()
-                    if not draw_opt:
-                        draw_opt = "COL"
-
-                    main_clone.Draw(draw_opt)
-
-                    # Draw overlays on top
-                    for obj in overlay_objs:
-                        obj_clone = obj.Clone()
-                        obj_clone.Draw(obj.GetDrawOption())
-                        
-                c.Update()
-
-                out_name = os.path.join(
-                    img_folder_of_root_obj, f"{root_filename[:-5]}_{i}.png"
-                )
-                c.SaveAs(out_name)
-
-            f.Close()
-        except Exception as e: 
-            logger.error(f"Error on file: {root_filename} --> \n{e}")
-            continue
+    Returns
+    -------
+    List of tuples:
+        ("TH2", histogram_name, numpy_array)
+    """
         
-
-def convert_root_files_to_img_(ROOT_FILES_PATH, img_folder_of_root_obj): 
+    root_filenames = [
+        f for f in os.listdir(ROOT_FILES_PATH)
+        if f.endswith(".root")
+        and os.path.isfile(os.path.join(ROOT_FILES_PATH, f))
+    ]    
     
-    root_filenames = os.listdir(ROOT_FILES_PATH)
-    os.makedirs(img_folder_of_root_obj, exist_ok=True)
+    os.makedirs(dest_folder, exist_ok=True)
 
     for root_filename in tqdm(iterable=root_filenames, total=len(root_filenames)): 
         f = ROOT.TFile.Open(os.path.join(ROOT_FILES_PATH,root_filename), "READ")
-        if not f or f.IsZombie():
+        if not f or f.IsZombie(): # IsZombie checks if ROOT failed internally
             raise SystemExit(f"Failed to open {os.path.join(ROOT_FILES_PATH,root_filename)}")
         
-        h = f.Get("ccdb_object") 
-        if not h:
+        canvas = f.Get("ccdb_object") 
+        if not canvas:
             raise SystemExit("Histogram not found. Pick a name printed in the previous cell.")
+        
+        tcanvas_prim_list = canvas.GetListOfPrimitives() #  { @0x16dcf0f78, @0x16dcf0f78, @0x16dcf0f78, @0x16dcf0f78 }
+        
+        tensors = []        
 
-        tcanvas_prim_list = h.GetListOfPrimitives()
+        for i , pad in enumerate(tcanvas_prim_list):
+            if i<2: 
+                prims = pad.GetListOfPrimitives()
+
+                for obj in prims: # obj has TFrame, TH2, TLine and anything relevant to draw the pad which the histogram we are seeing
+                
+                    cls = obj.ClassName()
+
+                    if obj.InheritsFrom("TH2"):
+                        tensor = th2_to_numpy(obj)
+                        tensors.append(tensor)
+
+        if tensors:
+            data = np.stack(tensors)  # (N, H, W)
+
+            np.savez_compressed(
+                os.path.join(dest_folder, root_filename.replace(".root", ".npz")),
+                data=data
+            )
             
-        for i, pad in enumerate(tcanvas_prim_list):
-            
-            if hasattr(pad, "SetTitle"):
-                pad.SetTitle("")
-            if pad.InheritsFrom("TPaletteAxis"):
-                pad.Remove(pad)
-            
-            # Save the pad in an image with 2000x2000 pixels 
-            c = ROOT.TCanvas(f"c_{root_filename[:-5]}_{i}", "", 2000, 2000)
-            c.SetWindowSize(2000,2000)
-            pad.Draw()
-            pad.SetPad(0, 0, 0.9, 0.9)  # stretch pad to fill the whole canvas for better resolution
-            c.Update()
-            c.SaveAs(str(os.path.join(img_folder_of_root_obj, f"{root_filename[:-5]}_{i}.png")))
-
-
-def plot_qs_cluster_per_run_number(ref_times, cl_times, run_number):
-
-    fig = go.Figure()
-
-    # Q_sum trace
-    fig.add_trace(
-        go.Scatter(
-            x=pd.to_datetime(ref_times, unit="ms"),
-            y=['Qsum' for _ in range(len(ref_times))],
-            mode="markers",
-            name=f"Q_sum (N={len(ref_times)})",
-        )
-    )
-
-    # Cluster trace
-    fig.add_trace(
-        go.Scatter(
-            x=pd.to_datetime(cl_times, unit="ms"),
-            y=["Cluster" for _ in range(len(cl_times))],
-            mode="markers",
-            name=f"Cluster (N={len(cl_times)}))",
-        )
-    )
-
-    fig.update_layout(
-        title=f"Creation times for run number: {run_number}",
-        xaxis_title="createTime",
-        yaxis=dict(title=""),
-        height=400,
-    )
-
-    fig.show()
+if __name__ == "__main__": 
+    root_files_folder = "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data-ingestion/bad"
+    convert_root_files_to_tensors(root_files_folder, os.path.join(root_files_folder, 'tensors'))
+    
