@@ -3,14 +3,16 @@ import mlflow
 from mlflow.tracking import MlflowClient
 import torch
 import numpy as np
-from model import LinearAE
-from dataset import QcdbImageDataset
+from model import ConvAE
+from dataset import QcdbImageDataset, QcdbNpyTensorDataset
 from torch.utils.data import DataLoader, random_split
 import matplotlib.pyplot as plt
 from utils import * 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
-import torch
+import torch        
+import pandas as pd
+import mlflow
 
 
 def infer_scores_mse(model, loader, device):
@@ -26,7 +28,6 @@ def infer_scores_mse(model, loader, device):
 
             if device:
                 imgs = imgs.to(device)
-
             recon = model(imgs)
 
             # per-image anomaly score
@@ -53,22 +54,27 @@ if __name__ == '__main__':
     client = MlflowClient()
 
     
-    mvs = list(client.search_model_versions("name='LinearAE'"))
+    mvs = list(client.search_model_versions("name='ConvAE'"))
     if not mvs:
-        raise RuntimeError("No model versions found for 'LinearAE'")
+        raise RuntimeError("No model versions found for 'ConvAE'")
 
     latest_mv = max(mvs, key=lambda mv: int(mv.version))
 
-    print("Latest:", latest_mv.version, latest_mv.current_stage, latest_mv.run_id, latest_mv.source)
+    print("Latest version:", latest_mv.version, latest_mv.source)
 
     model = mlflow.pytorch.load_model(latest_mv.source)
     
     dataset = QcdbImageDataset(
-        folder="/Users/zetasourpi/cernbox/training-data/tpc/good",
-        limit=None,
-        image_size=[128, 128]
+        folder="/Users/zetasourpi/cernbox/data/data-for-ml/good_quality_cluster_data/rgb_images"
         )
     
+    # dataset = QcdbImageDataset(
+    # folder="/Users/zetasourpi/cernbox/data/data-for-ml/good_quality_cluster_data/rgb_images", #"/Users/zetasourpi/cernbox/training-data/tpc/good",
+    # limit=200,
+    # )
+
+    #dataset = QcdbNpyTensorDataset(**CONFIG["dataset"])
+
     train_size = int(CONFIG["data_split"]["train_split"] * len(dataset))
     val_size = len(dataset) - train_size
 
@@ -77,17 +83,21 @@ if __name__ == '__main__':
         [train_size, val_size],
         generator=torch.Generator().manual_seed(CONFIG["data_split"]["split_seed"]),
     )
-
+    
     good_loader = DataLoader(
         val_set,
         **CONFIG["dataloader_args"]
     )
 
+    # bad_dataset =  QcdbNpyTensorDataset(folder = "/Users/zetasourpi/cernbox/training-data/tpc/bad",
+    #                                     limit=None,
+    #                                     add_channel= True,
+    #                                     log1p= False,
+    #                                     normalize=None)
+    
     bad_dataset = QcdbImageDataset(
-    folder="/Users/zetasourpi/cernbox/training-data/tpc/bad",
-    limit=None,
-    image_size=[128, 128]
-    )
+        folder="/Users/zetasourpi/cernbox/data/data-for-ml/combination_of_bad_samples/rgb_images",
+        )
     
     bad_loader = DataLoader(
     bad_dataset,
@@ -98,16 +108,32 @@ if __name__ == '__main__':
     scores_good = infer_scores_mse(model, good_loader, device=device)
     scores_bad  = infer_scores_mse(model, bad_loader, device=device)
 
-    thr = np.quantile(scores_good, 0.999)  # 99.9th percentile of the anomaly scores on good data. Meaning I allow <1% to be false negative from the good data
+    thr = np.quantile(scores_good, 0.995)  # percentile of the anomaly scores on good data. Meaning I allow <1% to be false negative from the good data
 
     fpr = np.sum(scores_good > thr) / len(scores_good) # FP / N_good
     tpr = np.sum(scores_bad > thr) / len(scores_bad) # TP / N_bad
     fdr = np.sum(scores_good > thr) /(np.sum(scores_good > thr) +np.sum(scores_bad > thr))
 
     print(f"Threshold: {thr:.4e}")
-    print(f"FPR (good): {fpr:.4%}")
-    print(f"TPR (bad):  {tpr:.4%}")
+    print(f"FPR (good that were classifies bad): {fpr:.4%}")
+    print(f"TPR (bad that are actually bad):  {tpr:.4%}")
     print(f"FDR:  {fdr:.4%}")
+    
+    FP = np.sum(scores_good > thr)   # good classified as bad
+    TN = np.sum(scores_good <= thr)  # good classified as good
+    TP = np.sum(scores_bad > thr)    # bad classified as bad
+    FN = np.sum(scores_bad <= thr)   # bad classified as good
+
+    print("Confusion Matrix:")
+    print("                Pred Good    Pred Bad")
+    print(f"Actual Good     {TN:8d}     {FP:8d}")
+    print(f"Actual Bad      {FN:8d}     {TP:8d}")
+
+    precision = TP/(TP+FP)
+    recall = TP/(TP+FN)
+    
+    print("Precision:", precision)
+    print("Recall:", recall)
 
     fig, ax = plt.subplots(figsize=(7, 5))
 
@@ -127,10 +153,10 @@ if __name__ == '__main__':
         label="Bad"
     )
 
-    ax.axvline(thr, linestyle="--", linewidth=2, label="99.9% threshold")
+    ax.axvline(thr, linestyle="--", linewidth=2, label="threshold")
 
     ax.set_xscale("log")
-    ax.set_yscale("log")
+    # ax.set_yscale("log")
 
     ax.set_xlabel("Anomaly score (MSE)")
     ax.set_ylabel("Count")
@@ -146,19 +172,42 @@ if __name__ == '__main__':
     plt.tight_layout()
     
     mlflow.set_tracking_uri(CONFIG["mlflow"]["tracking"]["server_uri"]) 
-    mlflow.set_experiment("exp_001_linearAE_image_flat") # must be the same name as in the training process 
+    mlflow.set_experiment("exp_010_updated_data_convAE") # must be the same name as in the training process 
 
-    with mlflow.start_run(run_name=f"test_linearAE_mse_q99"):
+    with mlflow.start_run(run_name=f"anomaly_score_with_base_96_model_0995_quantile"):
         mlflow.log_metric("threshold", float(thr))
         mlflow.log_metric("fpr", float(fpr))
         mlflow.log_metric("tpr", float(tpr))
         mlflow.log_metric("fdr", float(fdr))
-    
+        
+        mlflow.log_metric("tp", float(TP))
+        mlflow.log_metric("fp", float(FP))
+        mlflow.log_metric("tn", float(TN))
+        mlflow.log_metric("fn", float(FN))
+        
+        mlflow.log_metric("recall", float(recall))
+        mlflow.log_metric("precision", float(precision))
+        
         # Save and log plot under testing/
-        os.makedirs("tmp_plots", exist_ok=True)
-        plot_path = os.path.join("tmp_plots", "score_hist.png")
+        os.makedirs("tmp_plots_conv", exist_ok=True)
+        plot_path = os.path.join("tmp_plots_conv", "score_hist.png")
         fig.savefig(plot_path, dpi=150)
         mlflow.log_artifact(plot_path, artifact_path="testing/plots")
+
+        # Log the confusion matrix 
+        cm_df = pd.DataFrame(
+            [[TN, FP],
+            [FN, TP]],
+            index=["Actual Good", "Actual Bad"],
+            columns=["Pred Good", "Pred Bad"]
+        )
+
+        os.makedirs("tmp_plots_conv", exist_ok=True)
+
+        cm_path = os.path.join("tmp_plots_conv", "confusion_matrix.csv")
+        cm_df.to_csv(cm_path)
+
+        mlflow.log_artifact(cm_path, artifact_path="testing/data")
 
         # (Optional) also log the raw scores for debugging/repro
         np.savez_compressed(os.path.join("tmp_plots", "scores.npz"),
