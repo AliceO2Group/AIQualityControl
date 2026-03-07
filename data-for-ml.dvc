@@ -1,0 +1,11 @@
+md5: 298c2b016bd111b09f44201998e6981e
+frozen: true
+deps:
+- md5: 91ad600638c91dd99728ea28395efc76.dir
+  size: 4383283531
+  nfiles: 31688
+  hash: md5
+  path: /Users/zetasourpi/cernbox/data
+outs:
+- hash: md5
+  path: data-for-ml
