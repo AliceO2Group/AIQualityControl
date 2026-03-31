@@ -1,0 +1,6 @@
+outs:
+- md5: 69abaab41428b44de2ff82003adeb8c6.dir
+  size: 311303977
+  nfiles: 2063
+  hash: md5
+  path: train-data-cleaned

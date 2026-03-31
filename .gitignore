@@ -213,3 +213,6 @@ sandbox/
 docs/
 .DS_Store
 .vscode
+/data-for-ml
+/train-data
+/train-data-cleaned
