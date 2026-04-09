@@ -1,0 +1,9 @@
+{
+  "qc_prefixes": [
+    "qc/TPC/MO/Clusters/c_Sides_N_Clusters"
+  ],
+  "full_backup": false,
+  "hours_back": 24,
+  "limit_objects": 10,
+  "limit_versions": 20
+}
