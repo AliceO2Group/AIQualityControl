@@ -207,8 +207,9 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-data-ingestion/data
-data-ingestion/permissions
+data_curation/data
+data_curation/permissions
+data_curation/postgres_db/.env
 sandbox/
 docs/
 .DS_Store
@@ -216,3 +217,4 @@ docs/
 /data-for-ml
 /train-data
 /train-data-cleaned
+
