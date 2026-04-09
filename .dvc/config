@@ -1,0 +1,5 @@
+[core]
+    autostage = true
+    remote = cernbox
+['remote "cernbox"']
+    url = /Users/zetasourpi/cernbox/data/data-for-ml
