@@ -1,3 +1,0 @@
-# Download from QCDB
-
-Steps…
