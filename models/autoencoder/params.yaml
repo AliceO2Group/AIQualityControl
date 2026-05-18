@@ -211,6 +211,17 @@ vlm_eval:
     #   - "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/test/rgb_images/categories_with_handpicked_training_samples/transient_effect/TObject_1753155754965_0.png"
     #   - "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/test/rgb_images/categories_with_handpicked_training_samples/transient_effect/TObject_1749880435582_1.png"
 
+online_inference:
+  ccdb_url: "http://ali-qcdb-gpn.cern.ch:8083"
+  ae_model_path: "models/autoencoder/saved/ae_model.pt"
+  classifier_model_path: "models/autoencoder/saved/classifier.pt"
+  qc_source_path: "qc/TPC/MO/TPC/Clusters/..."    # path to fetch the latest ROOT object
+  qc_publish_path: "qc/ML/TPC/predictions"        # path to write predictions back
+  image_size: [330, 330]
+  pad_indices: [0, 1]
+  valid_duration_ms: 3600000                        # prediction validity window (1 hour)
+  publish_root_file: "inference_predictions/online/prediction.root"
+
 mlflow:
   run_name: "clean-retrain-of-linear-AE"                     
   experiment_name: "exp1"

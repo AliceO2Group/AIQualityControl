@@ -46,12 +46,12 @@ FOLDER_TO_LABEL = {
 }
 LABEL_TO_FOLDER = {v: k for k, v in FOLDER_TO_LABEL.items()}
 
-FINE_TO_COARSE = {
-    0: 0,  # good → Good
-    1: 1,  # empty_histogram → Bad
-    2: 1,  # empty_roc → Bad
-    3: 2,  # holes → Medium
-    4: 2,  # transient_effect → Medium (includes former underperforming_region)
+FINE_TO_COARSE = { # mapping to operational labels 
+    0: 0,  # good -> Good
+    1: 1,  # empty_histogram -> Bad
+    2: 1,  # empty_roc -> Bad
+    3: 2,  # holes -> Medium
+    4: 2,  # transient_effect -> Medium (includes former underperforming_region)
     # 5: 2,  # underperforming_region removed, merged into transient_effect
 }
 COARSE_LABEL_NAMES = ["Good", "Bad", "Medium"]
