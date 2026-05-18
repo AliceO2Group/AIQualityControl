@@ -5,9 +5,51 @@ tensor_dataset:
   log1p: False
   normalize: None
 
-dataset:
-  folder: "/Users/zetasourpi/cernbox/data/data-for-ml/good_quality_cluster_data/rgb_images"
+train_dataset:
+  folder: "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/train/rgb_images"
+  #folder: "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/test/root_objects/categ/holes"
+  limit: 10
+
+test_dataset: 
+  folders: "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/test/rgb_images/categories_with_handpicked_training_samples"
+
+qcdb_root_tensor_train_dataset:
+  folder: "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/train/root_objects"
+  mask_path: ~
   limit: ~
+  hist_indices: [1] # histogram at index 1 contains the actual TPC cluster map
+  max_value: 620000.0
+  augment_rot90: True   # random 0 / 90 / 180 / 270 degree rotation each sample
+  augment_hflip: True   # random horizontal (left-right) flip
+  augment_vflip: True   # random vertical (up-down) flip
+  return_metadata: True
+  cache_in_memory: True
+
+supervised_classifier:
+  ae_model_name: 'LinearAE'
+  num_classes: 5  # was 6, underperforming_region merged into transient_effect
+  channels: 3
+  base_channels: 64
+  dropout: 0.5
+
+train_classifier:
+  good_samples_folder: "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/train/rgb_images"
+  bad_samples_folders: "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/test/rgb_images/categories_with_handpicked_training_samples"
+  image_size: [330, 330]
+  good_samples_limit: ~
+  use_class_weights: false
+  use_weighted_sampler: true
+  augment_val: false
+  early_stopping_patience: 5
+  epochs: 50
+  lr: 0.001
+  weight_decay: 0.0001
+  train_split: 0.7
+  split_seed: 42
+  run_name: "frozen_ae_lossmap_classifier"
+  use_skeleton_mask: false        # if true, zero skeleton pixels in loss map before classification
+  skeleton_mask_n_ref_samples: 100  # number of good samples used to build the structural reference
+  skeleton_mask_percentile: 80    # top-X% of the averaged loss map is treated as detector skeleton
 
 data_split:  
   train_split: 0.8
@@ -16,13 +58,64 @@ data_split:
 dataloader_args:
   batch_size: 16
   shuffle: true
-  num_workers: 0
-  pin_memory: false
+  num_workers: 4
+
+train:
+  epochs: 2
+  lr: 1e-4
+  seed: 123
+  early_stopping_patience: 15
+  early_stopping_min_delta: 1e-5
 
 linear_model_parametrs:
-  latent_dim: 64
-  hidden_dim: 500
-  channels: 3
+  latent_dim: 500
+  hidden_dim: 4096
+  channels: 1
+
+reconstruction_export:
+  base_dir: "models/autoencoder/reconstruction_exports"
+  root_dirname: "root"
+  max_samples: 20
+
+inference_classifier:
+  ae_model_name: "LinearAE"
+  classifier_model_name: "LossMapClassifier"
+  test_data_root: "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/test/rgb_images/categories_with_handpicked_training_samples"
+  output_dir: "inference_predictions/classifier"
+  image_size: [330, 330]
+  batch_size: 16
+  augment: false
+  log_to_mlflow: false
+  run_name: "classifier-inference"
+
+inference_conv_classifier:
+  ae_model_name: "LinearAE"
+  classifier_model_name: "ConvLossMapClassifier"
+  test_data_root: "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/test/rgb_images/categories_with_handpicked_training_samples"
+  output_dir: "inference_predictions/conv_classifier"
+  image_size: [330, 330]
+  batch_size: 16
+  augment: true
+  save_misclassifications_only: true
+  log_to_mlflow: false
+  run_name: "conv-classifier-inference"
+  good_samples:
+    folder: "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/train/rgb_images"
+    limit: ~
+    train_split: 0.0
+    split_seed: 42
+
+inference:
+  model_name: "LinearAE"
+  test_data: "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/test/root_objects/categ/"
+  good_samples_test_data:  "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/train/rgb_images"
+  bad_samples_test_data: "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/test/rgb_images/categories_with_handpicked_training_samples/" #"/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/test/root_objects/categ/"
+  run_name: "final-linear-ae-inference"
+  output_dir: "inference_predictions/"
+  max_samples: ~
+  num_workers: 4
+  apply_augmentations: false  # when true, also run 180 degree, x-axis flip, and y-axis flip variants
+  loss_plot_threshold: 1e-1
 
 convolutional_model_parameters: 
   in_channels: 3
@@ -39,21 +132,88 @@ convolutional_model_parameters:
       padding: 1
       out_pads: [1, 0, 0, 1]
 
-train:
-  epochs: 30
-  lr: 1e-4
-  seed: 123
-
 viz:
   every_n_epochs: 4
   threshold: 0.05
   num_samples: 4
   loss_map_cmap: "jet"
 
+testing: 
+    # model_name: 'Optuna-ConvAE-Strided-Baseline'
+    model_name: 'LinearAE'
+    folder: "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/test/rgb_images"
+    bad_root_folder: "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/test/rgb_images/categories_with_handpicked_training_samples"
+    threshold_quantile: 0.995
+    results_folder: "./preds"
+
+optuna-hpo:
+  storage: null
+  study_name: "hpo-study"      
+  enabled: true
+  objective: "val_loss"
+  direction: "minimize"
+  n_trials: 15
+  max_epochs: 200
+
+  # Early Stopping 
+  patience: 20 # epochs
+  min_delta: 1e-4 # loss diff 
+
+  # Optuna Pruning 
+  pruning_enabled: true
+  sampler_type: "random"
+  pruner:
+    pruner_type: "median"
+    args: 
+      n_startup_trials: 15 # Pruning is disabled until the given number of trials finish in the same study.
+      n_warmup_steps: 10   # Pruning is disabled until the trial exceeds the given number of step. (in our implementation: step=epoch-1, as step starts from 0)
+      interval_steps: 1
+      n_min_trials: 5
+  
+  # Search Space 
+  search_space:
+    model-params: 
+      in_channels: 3
+      base_channels: {type: "int", low: 32, high: 160, step: 32, log: false}
+    train-params: 
+      lr: {type: "float", low: 1.0e-5, high: 1.0e-3, log: true}
+      weight_decay: {type: "float", low: 1.0e-6, high: 1.0e-2, log: true}
+      batch_size: {type: "categorical", choices: [4,8,12]}
+      # train_split: {type: "float", low: 0.7, high: 0.8, step: 0.1}
+
+vlm_eval:
+  model: "llama3.2-vision:11b"  # alternatives: qwen2.5vl:7b, minicpm-v:8b, llava:13b
+  bad_samples_root: "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/test/rgb_images/categories_with_handpicked_training_samples"
+  good_samples_folder: "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/train/rgb_images"
+  bad_samples_limit: 5  # per category; null = use all
+  good_samples_limit: 5
+  image_size: [330, 330]
+  run_name: "vlm-zero-shot-eval"
+  output_dir: "vlm_eval_output"
+  few_shot_examples:            # 3 ideal reference images per category (fill in your picks)
+    # good:
+    #   - "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/train/rgb_images/TObject_1715229556734_0.png"
+    #   - ""   # replace with path 2
+    #   - ""   # replace with path 3
+    # empty_histogram:
+    #   - "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/test/rgb_images/categories_with_handpicked_training_samples/empty_histogram/TObject_1716517143717_0.png"
+    #   - ""
+    #   - ""
+    # empty_roc:
+    #   - "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/test/rgb_images/categories_with_handpicked_training_samples/empty_roc/TObject_1761252941802_1.png"
+    #   - ""
+    #   - ""
+    # holes:
+    #   - "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/test/rgb_images/categories_with_handpicked_training_samples/holes/TObject_1765127581727_1.png"
+    #   - ""
+    #   - ""
+    # transient_effect:
+    #   - "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/test/rgb_images/categories_with_handpicked_training_samples/transient_effect/TObject_1753155754965_0.png"
+    #   - "/Users/zetasourpi/Desktop/GitRepoQC/AIQualityControl/data/tpc/test/rgb_images/categories_with_handpicked_training_samples/transient_effect/TObject_1749880435582_1.png"
 
 mlflow:
-  run_name: "increase_base_channels_to_96"                     
-  experiment_name: "exp_010_updated_data_convAE"
+  run_name: "clean-retrain-of-linear-AE"                     
+  experiment_name: "exp1"
   tracking:
     backend: "sqlite"                 
     local_uri: "sqlite:////Users/zetasourpi/cernbox/mlflow-backend/mlflow.db"               
@@ -66,4 +226,3 @@ mlflow:
     dataset: "Good Quality TPC Cluster Maps (Images)"
   detailed_comments: "None"
   detailed_comments_filename: "notes.md"
-
