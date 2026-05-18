@@ -160,3 +160,4 @@ if __name__ == '__main__':
 
     # qual_val_pairs = [("Raw occupancy quality","Good"), ("Cluster occupancy quality","Bad")]
     filter_mo_based_on_quality_summaries(BASE_PATH, qcdb_mo_json_data_REL_PATH, bkkp_json_data_REL_PATH, qcdb_qs_mo_json_data_REL_PATH, qual_val_pairs=[], dst=dest_folder)
+ 

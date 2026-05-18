@@ -20,6 +20,7 @@ import numpy as np
 from tqdm.auto import tqdm 
 import shutil 
 import logging
+import tempfile
 
 logger = logging.getLogger(__name__)
 
@@ -322,12 +323,78 @@ def convert_root_files_to_img(ROOT_FILES_PATH, img_folder_of_root_obj, grey_scal
         except Exception as e:
             print(f"Error on file {root_filename}: {e}")
             continue
-        
-        
+
+
+def root_to_pil_image(root_path: str, pad_index: int = 0, grey_scale: bool = True, W: int = 330, H: int = 330):
+    """Render one pad from a ROOT file and return a PIL Image entirely in memory."""
+    import numpy as np
+    from PIL import Image as PILImage
+
+    f = ROOT.TFile.Open(root_path, "READ")
+    canvas = f.Get("ccdb_object")
+    if not canvas:
+        f.Close()
+        raise RuntimeError(f"ccdb_object not found in {root_path}")
+
+    tcanvas_prim_list = canvas.GetListOfPrimitives()
+    src_pad = tcanvas_prim_list.At(pad_index)
+    if src_pad is None:
+        f.Close()
+        raise IndexError(f"pad_index={pad_index} out of range in {root_path}")
+
+    c = make_canvas_exact(f"c_tmp_{pad_index}", W, H)
+    p = ROOT.TPad("p_tmp", "", 0, 0, 1, 1)
+    p.SetFillColor(0)
+    p.SetBorderMode(0)
+    p.SetBorderSize(0)
+    p.SetLeftMargin(0.0)
+    p.SetRightMargin(0.0)
+    p.SetTopMargin(0.0)
+    p.SetBottomMargin(0.0)
+    pad_no_ticks(p)
+    p.Draw()
+    p.cd()
+
+    ROOT.gStyle.SetOptTitle(0)
+    ROOT.gStyle.SetOptStat(0)
+
+    main_obj = None
+    for prim in src_pad.GetListOfPrimitives():
+        cname = prim.ClassName()
+        if cname.startswith("TH") or cname.startswith("TGraph") or cname.startswith("TProfile"):
+            main_obj = prim
+            break
+
+    if main_obj:
+        main_clone = main_obj.Clone()
+        if main_clone.InheritsFrom("TH1") or main_clone.InheritsFrom("TProfile"):
+            strip_axes_and_ticks(main_clone)
+        main_clone.Draw(main_obj.GetDrawOption() or "COL")
+    else:
+        src_pad.Draw()
+
+    p.Update()
+    c.Update()
+
+    img = ROOT.TImage.Create()
+    img.FromPad(p)
+    if grey_scale:
+        img.Gray()
+
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+        tmp_path = tmp.name
+    try:
+        img.WriteImage(tmp_path)
+        pil_img = PILImage.open(tmp_path).copy()
+    finally:
+        os.remove(tmp_path)
+
+    c.Close()
+    f.Close()
+    return pil_img
 
 
 # Convert ROOT to TENSORS 
-
 import os 
 from tqdm import tqdm
 import ROOT 
