@@ -340,7 +340,7 @@ def main_online():
 
     image_size = tuple(cfg.get("image_size", [330, 330]))
     pad_indices = tuple(cfg.get("pad_indices", [0, 1]))
-    tensors = prepare_tensors(cfg["ccdb_url"], cfg["qc_source_path"], image_size, pad_indices)
+    source_filename, tensors = prepare_tensors(cfg["ccdb_url"], cfg["qc_source_path"], image_size, pad_indices)
 
     predictions = []
     for pad_idx, tensor in zip(pad_indices, tensors):
@@ -357,9 +357,57 @@ def main_online():
         })
         print(f"  Pad {pad_idx}: {predictions[-1]['fine_name']} → {predictions[-1]['coarse_name']}")
 
-    result = publish_predictions(predictions, cfg)
+    result = publish_predictions(predictions, cfg, source_filename=source_filename)
     print(f"\nFinal prediction: {result}")
     return result
 
+def main_online_loop():
+    """Poll QCDB every 120s and run inference whenever a new object appears."""
+    import time
+    from online_data_preparation import get_latest_version, prepare_tensors
+    from online_publishing import publish_predictions
+
+    config = load_yaml("params.yaml")
+    cfg = config["online_inference"]
+    device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
+    print("Device:", device)
+
+    ae_model = torch.load(cfg["ae_model_path"], map_location=device, weights_only=False).eval()
+    for p in ae_model.parameters():
+        p.requires_grad = False
+    classifier = torch.load(cfg["classifier_model_path"], map_location=device, weights_only=False).eval()
+
+    image_size = tuple(cfg.get("image_size", [330, 330]))
+    pad_indices = tuple(cfg.get("pad_indices", [0, 1]))
+    last_seen = None
+
+    print("Polling every 120s...")
+    while True:
+        try:
+            version = get_latest_version(cfg["ccdb_url"], cfg["qc_source_path"], since=last_seen)
+            if version:
+                last_seen = version.created_at
+                print(f"New object (created_at={version.created_at_as_dt}), running inference...")
+                source_filename, tensors = prepare_tensors(cfg["ccdb_url"], version, image_size, pad_indices)
+                predictions = []
+                for pad_idx, tensor in zip(pad_indices, tensors):
+                    img = tensor.unsqueeze(0).to(device)
+                    with torch.no_grad():
+                        loss_map = (img - ae_model(img)) ** 2
+                        fine_label = int(torch.argmax(classifier(loss_map), dim=1).item())
+                    predictions.append({
+                        "pad_index": pad_idx,
+                        "fine_label": fine_label,
+                        "fine_name": LABEL_TO_FOLDER[fine_label],
+                        "coarse_name": coarse_name(fine_label),
+                    })
+                    print(f"  Pad {pad_idx}: {predictions[-1]['fine_name']} → {predictions[-1]['coarse_name']}")
+                result = publish_predictions(predictions, cfg, source_filename=source_filename)
+                print(f"Published: {result}")
+        except Exception as e:
+            print(f"[WARN] {e}")
+        time.sleep(120)
+
+
 if __name__ == "__main__":
-    main()
+    main_online_loop()

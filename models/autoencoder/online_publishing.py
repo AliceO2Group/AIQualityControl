@@ -1,4 +1,5 @@
 import datetime
+import os
 from pathlib import Path
 
 import requests
@@ -28,20 +29,22 @@ def write_prediction_root_file(prediction: dict, out_path: str) -> str:
     return out_path
 
 
-def upload_to_qcdb(ccdb_url: str, publish_path: str, root_file: str, valid_from_ms: int, valid_until_ms: int):
-    """Upload ROOT file to QCDB via HTTP PUT."""
+def upload_to_qcdb(ccdb_url: str, publish_path: str, root_file: str, valid_from_ms: int, valid_until_ms: int, filename: str = None):
+    """Upload ROOT file to QCDB via HTTP POST multipart."""
     url = f"{ccdb_url.rstrip('/')}/{publish_path.strip('/')}/{valid_from_ms}/{valid_until_ms}"
+    upload_name = filename or os.path.basename(root_file)
     with open(root_file, "rb") as f:
-        resp = requests.put(url, data=f.read(), headers={"Content-Type": "application/octet-stream"}, timeout=30)
+        resp = requests.post(url, files={"send": (upload_name, f, "application/root")}, timeout=30)#, verify="/Users/zetasourpi/.globus/usercert.pem")
     resp.raise_for_status()
     print(f"  Uploaded to QCDB: {url}  (HTTP {resp.status_code})")
     return resp
 
 
-def publish_predictions(predictions: list, cfg: dict) -> str:
+def publish_predictions(predictions: list, cfg: dict, source_filename: str = None) -> str:
     """Aggregate pad predictions, write ROOT file, upload to QCDB. Returns prediction string."""
     combined = combine_predictions(predictions)
-    root_file = write_prediction_root_file(combined, cfg.get("publish_root_file", "inference_predictions/online/prediction.root"))
+    root_file = write_prediction_root_file(combined, cfg.get("publish_root_file", "ML_prediction.root"))
     now_ms = int(datetime.datetime.now(datetime.timezone.utc).timestamp() * 1000)
-    upload_to_qcdb(cfg["ccdb_url"], cfg["qc_publish_path"], root_file, now_ms, now_ms + cfg.get("valid_duration_ms", 3_600_000))
+    publish_url = cfg.get("ccdb_url_test") #or cfg["ccdb_url"]
+    upload_to_qcdb(publish_url, cfg["qc_publish_path"], root_file, now_ms, now_ms + cfg.get("valid_duration_ms", 3_600_000), filename=source_filename)
     return f"{combined['coarse_name']} ({combined['fine_name']})"

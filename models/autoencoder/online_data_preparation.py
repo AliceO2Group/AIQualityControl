@@ -1,11 +1,9 @@
-import sys
 from pathlib import Path
 
 import torch
 from torchvision import transforms
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "data_curation" / "postgres_db"))
-from sync_qcdb_checks import Ccdb, save_response_to_file
+from qcdb_client import Ccdb, save_response_to_file
 from utils import root_to_pil_image
 
 TEMP_DIR = Path(__file__).parent / ".temp_online_images"
@@ -40,13 +38,21 @@ def image_to_tensor(png_path, image_size=(330, 330)) -> torch.Tensor:
     return tfm(Image.open(png_path).convert("RGB"))
 
 
-def prepare_tensors(ccdb_url: str, qc_path: str, image_size=(330, 330), pad_indices=(0, 1)) -> list:
-    """Fetch ROOT file, render histogram pads to images, return [3,H,W] tensors."""
-    root_path = fetch_latest(ccdb_url, qc_path)
+def get_latest_version(ccdb_url: str, qc_path: str, since=None):
+    """Return the latest ObjectVersion newer than `since`, or None if nothing new."""
+    versions = Ccdb(ccdb_url).get_versions_list(qc_path, from_ts=since or "")
+    return max(versions, key=lambda v: v.created_at) if versions else None
+
+
+def prepare_tensors(ccdb_url: str, version, image_size=(330, 330), pad_indices=(0, 1)) -> tuple:
+    """Download ROOT file for `version`, render histogram pads, return (source_filename, [3,H,W] tensors)."""
+    resp = Ccdb(ccdb_url).download_version(version)
+    root_path = save_response_to_file(resp, str(TEMP_DIR), fallback_name="latest.root")
+    source_filename = Path(root_path).name
     tfm = transforms.Compose([transforms.Resize(image_size), transforms.ToTensor()])
     tensors = []
     for i in pad_indices:
         pil = root_to_pil_image(root_path, pad_index=i, grey_scale=False, W=image_size[1], H=image_size[0])
-        pil.save(TEMP_DIR / f"pad_{i}.png")   # fixed name — overwritten on every call
+        pil.save(TEMP_DIR / f"pad_{i}.png")
         tensors.append(tfm(pil.convert("RGB")))
-    return tensors
+    return source_filename, tensors

@@ -95,7 +95,8 @@ inference_conv_classifier:
   output_dir: "inference_predictions/conv_classifier"
   image_size: [330, 330]
   batch_size: 16
-  augment: true
+  augment: false
+  use_skeleton_mask: false
   save_misclassifications_only: true
   log_to_mlflow: false
   run_name: "conv-classifier-inference"
@@ -213,14 +214,16 @@ vlm_eval:
 
 online_inference:
   ccdb_url: "http://ali-qcdb-gpn.cern.ch:8083"
+  #ccdb_url_test: "https://ccdb-test.cern.ch:8081/"
+  ccdb_url_test: "http://piotr-ostack.cern.ch:8083"
   ae_model_path: "models/autoencoder/saved/ae_model.pt"
   classifier_model_path: "models/autoencoder/saved/classifier.pt"
-  qc_source_path: "qc/TPC/MO/TPC/Clusters/..."    # path to fetch the latest ROOT object
-  qc_publish_path: "qc/ML/TPC/predictions"        # path to write predictions back
+  qc_source_path:  "qc/TPC/MO/Clusters/c_Sides_N_Clusters"       # path to fetch the latest ROOT object
+  qc_publish_path: "qc/TPC/MO/Q_O_physics/ML_predictions"        # path to write predictions back
   image_size: [330, 330]
   pad_indices: [0, 1]
   valid_duration_ms: 3600000                        # prediction validity window (1 hour)
-  publish_root_file: "inference_predictions/online/prediction.root"
+  publish_root_file: "ML_prediction.root"
 
 mlflow:
   run_name: "clean-retrain-of-linear-AE"                     
