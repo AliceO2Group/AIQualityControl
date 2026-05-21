@@ -214,15 +214,15 @@ vlm_eval:
 
 online_inference:
   ccdb_url: "http://ali-qcdb-gpn.cern.ch:8083"
-  #ccdb_url_test: "https://ccdb-test.cern.ch:8081/"
   ccdb_url_test: "http://piotr-ostack.cern.ch:8083"
+  #ccdb_url_test: "http://ali-qcdb-gpn.cern.ch:8083"
   ae_model_path: "models/autoencoder/saved/ae_model.pt"
   classifier_model_path: "models/autoencoder/saved/classifier.pt"
   qc_source_path:  "qc/TPC/MO/Clusters/c_Sides_N_Clusters"       # path to fetch the latest ROOT object
   qc_publish_path: "qc/TPC/MO/Q_O_physics/ML_predictions"        # path to write predictions back
   image_size: [330, 330]
   pad_indices: [0, 1]
-  valid_duration_ms: 3600000                        # prediction validity window (1 hour)
+  valid_duration_ms: 3600000                        # 1 hour
   publish_root_file: "ML_prediction.root"
 
 mlflow:

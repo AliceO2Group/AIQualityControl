@@ -342,22 +342,22 @@ def main_online():
     pad_indices = tuple(cfg.get("pad_indices", [0, 1]))
     source_filename, tensors = prepare_tensors(cfg["ccdb_url"], cfg["qc_source_path"], image_size, pad_indices)
 
-    predictions = []
+    predictions, pad_loss_maps = [], {}
     for pad_idx, tensor in zip(pad_indices, tensors):
         img = tensor.unsqueeze(0).to(device)
         with torch.no_grad():
             loss_map = (img - ae_model(img)) ** 2
             fine_label = int(torch.argmax(classifier(loss_map), dim=1).item())
-        
         predictions.append({
             "pad_index": pad_idx,
             "fine_label": fine_label,
             "fine_name": LABEL_TO_FOLDER[fine_label],
             "coarse_name": coarse_name(fine_label),
         })
+        pad_loss_maps[pad_idx] = loss_map.squeeze(0).mean(0).cpu().numpy()
         print(f"  Pad {pad_idx}: {predictions[-1]['fine_name']} → {predictions[-1]['coarse_name']}")
 
-    result = publish_predictions(predictions, cfg, source_filename=source_filename)
+    result = publish_predictions(predictions, cfg, source_filename=source_filename, loss_maps=pad_loss_maps)
     print(f"\nFinal prediction: {result}")
     return result
 
@@ -389,7 +389,7 @@ def main_online_loop():
                 last_seen = version.created_at
                 print(f"New object (created_at={version.created_at_as_dt}), running inference...")
                 source_filename, tensors = prepare_tensors(cfg["ccdb_url"], version, image_size, pad_indices)
-                predictions = []
+                predictions, pad_loss_maps = [], {}
                 for pad_idx, tensor in zip(pad_indices, tensors):
                     img = tensor.unsqueeze(0).to(device)
                     with torch.no_grad():
@@ -401,8 +401,9 @@ def main_online_loop():
                         "fine_name": LABEL_TO_FOLDER[fine_label],
                         "coarse_name": coarse_name(fine_label),
                     })
+                    pad_loss_maps[pad_idx] = loss_map.squeeze(0).mean(0).cpu().numpy()
                     print(f"  Pad {pad_idx}: {predictions[-1]['fine_name']} → {predictions[-1]['coarse_name']}")
-                result = publish_predictions(predictions, cfg, source_filename=source_filename)
+                result = publish_predictions(predictions, cfg, source_filename=source_filename, loss_maps=pad_loss_maps)
                 print(f"Published: {result}")
         except Exception as e:
             print(f"[WARN] {e}")

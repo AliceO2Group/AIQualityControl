@@ -665,3 +665,16 @@ def convert_root_files_to_tensors(
                 os.path.join(dest_folder, root_filename.replace(".root", ".npz")),
                 data=data
             )
+
+
+def save_response_to_file(resp, outdir: str, fallback_name: str = "download.bin") -> str:
+    os.makedirs(outdir, exist_ok=True)
+    cd = resp.headers.get("Content-Disposition", "")
+    m = re.search(r'filename="([^"]+)"', cd)
+    filename = m.group(1) if m else fallback_name
+    dst = os.path.join(outdir, filename)
+    with open(dst, "wb") as f:
+        for chunk in resp.iter_content(chunk_size=1024 * 1024):
+            if chunk:
+                f.write(chunk)
+    return dst
